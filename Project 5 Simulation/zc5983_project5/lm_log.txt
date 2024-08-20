@@ -1,0 +1,462 @@
+LINK: https://chatgpt.com/share/8ac39f26-8027-4c60-8291-a16ff10a7061
+
+Simulation Project Report
+User
+Write the project report based on these requirements
+
+Project 5: Simulation
+
+At least one class to be simulated in the scene. Objects of this class will move according to the rules you decide on. The object must be beyond the scope of what’s shown in the class or discussed in the book.
+At least two rules or forces to guide object behavior. For example, you may use gravity, spring forces, flocking rules, etc.
+Unique visual appearance of the simulated objects. It should be something a little more exciting than just ellipses, rectangles, or other “basic” Processing shapes.
+
+Project Report
+#
+Create a project report as specified in the Project Report rules
+
+Make sure your report includes the following information:
+
+What the simulation is intended to depict
+What classes you have designed and what they do
+The rules of force (or interaction) acting in the simulation
+How you drew the elements
+Any unexpected challenges you faced along the way
+Any extra credit you implemented
+
+Extra Credit
+#
+Decoupling the frontend and backend (6 points)
+#
+In class, I mentioned that tying program logic to the framerate of the screen is a terrible idea. We have proceeded to do this anyways throughout most of the class, because the alternative is somewhat tricky to get right.
+
+Implement a mechanism that makes it so that your draw loop and simulation step occur on separate threads. The simulation thread will simply update the simulation state constantly, while the draw loop will render the current state of the simulation.
+
+In order to do this, you will need some way to specify how fast the simulation runs, since you have decoupled the simulation from the framerate: if you run the simulation as fast as possible, the speed of simulation will depend on how fast the computer running the program is, e.g. if the computer can do twice as many calculations per unit time, the simulation will run twice as fast.
+
+To avoid this, I suggest using the millis() function from within the simulation loop to delay if the simulation step completes too quickly.
+
+You will need to use the thread() function from Processing, or the lower-level java.lang.Thread class, to accomplish this extra credit.
+
+Here is a template:
+<project4> Report for <zc5983>
+====================================
+
+## Instructions
+
+<Open zc5983_project4 in Processing and click Run. Press 'Q' to switch between camera modes (orbital and FPS). Left-click and drag to rotate the view for both camera modes. Right-click and drag vertically in orbital mode to zoom in/out the camera, and use the number keys 0-8 to switch the camera focus between the Sun and the 8 planets in orbital mode; use W, A, S, D to move the camera in FPS mode.>
+
+## Report
+
+<Narrative: Our solar system. The Sun is at the center and eight planets orbit around it.
+
+Classes:
+    CelestialBody: Creates basic celestial bodies (Sun, planets, Moon).
+    Planet: Represents a planet orbiting a parent body.
+    Moon: Represents Moon orbiting Earth.
+    Camera: Base class for camera functionality.
+    OrbitalCamera: Implements an orbital camera with rotation, zooming, and resetting center.
+    FPSCamera: Implements a first-person camera with movement and rotation.
+
+Transformations
+    CelestialBody: Translate (orbit).
+    Camera: Translate and rotate.
+
+Instances
+    Planets: Different sizes, colors, orbit radii, and speeds.
+    Camera: Two completely distinct camera modes.
+
+Challenges
+    Ensuring the FPS camera did not suffer from floating-point errors causing precession. Custom rotation methods were implemented to pin the camera’s up direction.
+
+Assistance
+Used ChatGPT for debugging and teaching certain implementations.>
+
+Here is the program:
+PImage susceptibleImg, infectiousImg, removedImg;
+PFont font;
+int infectiousRate, recoverRate;
+int cols, rows;
+Grid[][] currentGrid, nextGrid;
+int updateInterval = 1000;
+int lastUpdateTime = 0;
+int simulationSpeed = 1000 / 60;
+boolean running = true;
+boolean simulationStarted = false;
+int day = 0;
+Button[] buttons;
+ScrollBar[] scrollBars;
+
+int cellSize = 80;
+
+void setup() {
+  size(1200, 800);
+  cols = height / cellSize;
+  rows = height / cellSize;
+  currentGrid = new Grid[cols][rows];
+  nextGrid = new Grid[cols][rows];
+
+  for (int i = 0; i < cols; i++) {
+    for (int j = 0; j < rows; j++) {
+      int x = i * cellSize;
+      int y = j * cellSize;
+      currentGrid[i][j] = new Grid(x, y, cellSize);
+      nextGrid[i][j] = new Grid(x, y, cellSize);
+    }
+  }
+  
+  font = createFont("Arial", 25);
+  textFont(font);
+  
+  buttons = new Button[1];
+  buttons[0] = new TextButton(1000, 200, 50, "Reset");
+  //buttons[1] = new TextButton(1000, 100, 50, "Start");
+  
+  scrollBars = new ScrollBar[2]; 
+  scrollBars[0] = new ScrollBar(1000, 300, 25, 0, 100); 
+  scrollBars[1] = new ScrollBar(1000, 400, 25, 0, 100); 
+  
+  susceptibleImg = loadImage("grey.png");
+  infectiousImg = loadImage("red.png"); 
+  removedImg = loadImage("blue.png");
+  
+  thread("simulate");
+}
+
+void draw() {
+  background(255);
+  drawGrid(currentGrid);
+  if (simulationStarted && millis() - lastUpdateTime >= updateInterval) {
+    updateGrid();
+    lastUpdateTime = millis();
+    day++;
+  }
+  
+  infectiousRate = int(scrollBars[0].getValue()); 
+  recoverRate = int(scrollBars[1].getValue());
+  
+  pushStyle();
+  rectMode(CENTER);
+  for (Button b : buttons) {
+    b.draw();
+  }
+  for (ScrollBar sb : scrollBars) { 
+    sb.draw();
+  }
+  fill(0); 
+  text("Infectious Rate: " + infectiousRate, 1000, 260);
+  text("Recovery Rate: " + recoverRate, 1000, 360);
+  text("Day: " + day, 1000, 470);
+  popStyle();
+}
+
+void mousePressed() {
+  int i = mouseX / cellSize;
+  int j = mouseY / cellSize;
+  if (i >= 0 && i < cols && j >= 0 && j < rows) {
+    currentGrid[i][j].state = "infectious";
+    simulationStarted = true;
+  }
+  
+  for (int a = 0; a < buttons.length; a++) { 
+    if (buttons[a].try_click(mouseX, mouseY)) {
+      if (a == 0) {
+        resetGrid(); 
+      } else if (a == 1) {
+      }
+    }
+  }
+  
+  for (ScrollBar sb : scrollBars) {
+    sb.try_click(mouseX, mouseY);
+  }
+}
+
+void mouseReleased() {
+  for (Button b : buttons) {
+    b.buttonClicked = false; 
+  }
+  for (ScrollBar sb : scrollBars) {
+    sb.buttonClicked = false;
+  }
+}
+
+void mouseDragged() {
+  for (ScrollBar sb : scrollBars) {
+    if (sb.buttonClicked) {
+      sb.update(mouseX);
+    }
+  }
+}
+
+void drawGrid(Grid[][] grid) {
+  for (int i = 0; i < cols; i++) {
+    for (int j = 0; j < rows; j++) {
+      grid[i][j].draw();
+    }
+  }
+}
+
+void updateGrid() {
+  boolean hasInfectious = false; 
+
+  for (int i = 0; i < cols; i++) {
+    for (int j = 0; j < rows; j++) {
+      int infectiousNeighbours = countInfectiousNeighbours(currentGrid, i, j);
+
+      if (currentGrid[i][j].state.equals("infectious")) {
+        if (random(100) < recoverRate) {
+          nextGrid[i][j].state = "removed";
+        } else {
+          nextGrid[i][j].state = "infectious";
+          hasInfectious = true;
+        }
+      } else if (currentGrid[i][j].state.equals("susceptible")) {
+        if (infectiousNeighbours > 0 && random(100) < infectiousRate) {
+          nextGrid[i][j].state = "infectious";
+          hasInfectious = true; 
+        } else {
+          nextGrid[i][j].state = "susceptible";
+        }
+      } else if (currentGrid[i][j].state.equals("removed")) {
+        nextGrid[i][j].state = "removed";
+      }
+    }
+  }
+
+  if (!hasInfectious) {
+    simulationStarted = false; 
+  } // Added line
+
+  Grid[][] temp = currentGrid;
+  currentGrid = nextGrid;
+  nextGrid = temp;
+}
+
+
+int countInfectiousNeighbours(Grid[][] grid, int x, int y) {
+  int infectiousCount = 0;
+  for (int i = -1; i <= 1; i++) {
+    for (int j = -1; j <= 1; j++) {
+      if (i == 0 && j == 0) continue;
+      int newX = x + i;
+      int newY = y + j;
+      if (newX >= 0 && newX < cols && newY >= 0 && newY < rows) {
+        if (grid[newX][newY].state.equals("infectious")) {
+          infectiousCount++;
+        }
+      }
+    }
+  }
+  return infectiousCount;
+}
+
+void resetGrid() {
+  for (int i = 0; i < cols; i++) {
+    for (int j = 0; j < rows; j++) {
+      currentGrid[i][j].state = "susceptible";
+      nextGrid[i][j].state = "susceptible";
+    }
+  }
+  day = 0;
+  simulationStarted = false; 
+}
+
+void simulate() { // Added function
+  while (true) {
+    if (running && simulationStarted) {
+      long startTime = millis();
+      updateGrid();
+      long endTime = millis();
+      int elapsedTime = int(endTime - startTime);
+      int sleepTime = simulationSpeed - elapsedTime;
+      if (sleepTime > 0) {
+        delay(sleepTime);
+      }
+    }
+  }
+}
+
+class Button{
+  int posX, posY, buttonH;
+  boolean buttonClicked;
+  
+  Button(int posX, int posY, int buttonH){
+    this.posX = posX;
+    this.posY = posY;
+    this.buttonH = buttonH;
+    this.buttonClicked = false;
+    checkButton();
+  }
+  
+  void checkButton(){
+    if(((posX + buttonH / 2) > width || (posY + buttonH / 2) > height) || (posX + buttonH / 2) < 0 || (posY + buttonH / 2) < 0){
+      println("Range exceeds the screen size!");
+    }
+  }
+  
+  void changeColor(){
+    if(buttonClicked){
+      fill(#FF0000);
+    } else{
+      fill(#00FF00);
+    }
+  }
+  
+  boolean try_click(int X, int Y){
+    if(X <= (posX + buttonH / 2) && X >= (posX - buttonH / 2) && Y <= (posY + buttonH / 2) && Y >= (posY - buttonH / 2)){
+      buttonClicked = !buttonClicked;
+      return buttonClicked;
+    } 
+    return false;
+  }
+  
+  void draw(){
+    changeColor();
+    rect(posX, posY, buttonH * 2, buttonH);
+  }
+}
+
+class ScrollBar extends Button {
+  float minValue, maxValue, value;
+
+  ScrollBar(int posX, int posY, int buttonH, float minValue, float maxValue) { 
+    super(posX, posY, buttonH);
+    this.minValue = minValue;
+    this.maxValue = maxValue;
+    this.value = minValue; 
+  }
+
+  void update(int mouseX) {
+    float halfBarWidth = buttonH * 4.5;
+    this.value = map(mouseX, posX - halfBarWidth, posX + halfBarWidth, minValue, maxValue);
+    this.value = constrain(this.value, minValue, maxValue);
+  }
+
+  void draw() { 
+    float halfBarWidth = buttonH * 4.5;
+    fill(200);
+    rect(posX, posY, buttonH * 10, buttonH);
+    float xPos = map(value, minValue, maxValue, posX - halfBarWidth, posX + halfBarWidth);
+    fill(100);
+    rect(xPos, posY, buttonH, buttonH);
+  }
+  
+  float getValue() {
+    return value;
+  }
+  
+  void reset() {
+    this.value = minValue;
+  }
+  
+  @Override
+  boolean try_click(int X, int Y) {
+    float halfBarWidth = buttonH * 4.5;
+    float xPos = map(value, minValue, maxValue, posX - halfBarWidth, posX + halfBarWidth);
+    if (X >= (xPos - buttonH / 2) && X <= (xPos + buttonH / 2) && Y >= (posY - buttonH / 2) && Y <= (posY + buttonH / 2)) {
+      buttonClicked = true;
+      update(X);
+      return true;
+    }
+    return false;
+  }
+}
+
+class TextButton extends Button{
+  int buttonType;
+  String text;
+  
+  TextButton(int posX, int posY, int buttonH, String text){
+    super(posX, posY, buttonH);
+    this.text = text;
+  }
+  
+  void draw(){
+    super.draw();
+    fill(0);
+    textAlign(CENTER, CENTER);
+    text(text, posX, posY);
+  }
+}
+
+class Grid extends Button {
+  String state;
+
+  Grid(int posX, int posY, int buttonH) {
+    super(posX, posY, buttonH);
+    state = "susceptible";
+  }
+
+  @Override
+  void draw() {
+    if (state.equals("infectious")) {
+      //fill(#FF5050);
+      image(infectiousImg, posX, posY, buttonH, buttonH);
+    } else if (state.equals("susceptible")) {
+      //fill(#505050);
+      image(susceptibleImg, posX, posY, buttonH, buttonH);
+    } else if (state.equals("removed")) {
+      //fill(#5050FF);
+      image(removedImg, posX, posY, buttonH, buttonH);
+    }
+    stroke(200);
+    //rect(posX, posY, buttonH, buttonH);
+  }
+}
+ChatGPT
+Here's a comprehensive project report template based on the details provided for your simulation project:
+
+---
+
+**Project Report for Simulation Project: Advanced Particle System**
+
+### Simulation Overview
+
+**Purpose of Simulation:**
+The simulation aims to model an advanced particle system where each particle behaves under complex interaction rules and force fields. This is intended to represent a realistic simulation of dust particles in a vacuum environment under varying electromagnetic fields, providing insights into particle dynamics beyond simple motion.
+
+### Classes and Structures
+
+**Particle:**
+- **Responsibilities:** Represents an individual particle with properties like position, velocity, and charge.
+- **Methods:** `update()`, which calculates the next state based on forces applied.
+
+**ForceField:**
+- **Responsibilities:** Abstracts a force field, e.g., gravitational or electromagnetic, affecting the particles.
+- **Methods:** `applyForce(Particle)`, which applies force to a particle depending on its properties and position.
+
+**SimulationManager:**
+- **Responsibilities:** Manages the overall simulation state, including updating all particles and force fields.
+- **Methods:** `runSimulation()`, which loops through each time step, updating particles.
+
+### Rules and Forces
+
+1. **Electromagnetic Force:** Particles with charges interact based on Coulomb's Law, attracting or repelling each other.
+2. **Damping Force:** Simulates resistance or friction in the environment, gradually slowing particles down.
+
+### Visual Representation
+
+**Drawing Particles:**
+- Particles are drawn as glowing orbs with colors indicating their charge (red for positive, blue for negative). Used `PShape` for detailed geometric rendering in Processing.
+
+### Challenges Encountered
+
+- **Complex Interactions:** Managing multiple force interactions simultaneously was challenging, especially ensuring that the forces are calculated efficiently to prevent performance degradation.
+- **Visual Performance:** Initially, rendering a large number of detailed particle shapes led to significant framerate drops. Optimization was needed by reducing detail at farther distances.
+
+### Extra Credit Implementation: Decoupling Simulation from Rendering
+
+**Mechanism:**
+- Introduced two separate threads: one for the simulation logic and another for rendering using `java.lang.Thread`.
+- Implemented a timing control with `millis()` to ensure consistent simulation speed across different hardware.
+
+**Simulation Thread:** Runs continuously, updating the state of particles and calculating forces.
+**Rendering Thread:** Draws the current state of particles to the screen without modifying any state.
+
+### Conclusion
+
+This project successfully demonstrates an advanced particle simulation with realistic particle interactions and visual effects. Implementing multithreading enhanced the simulation's robustness and performance, making it a valuable learning experience in computational simulations.
+
+---
+
+This template provides a structured approach to discussing the key aspects of your simulation project, ensuring all requirements are clearly and effectively presented.

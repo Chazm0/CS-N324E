@@ -1,0 +1,471 @@
+LINK: https://chatgpt.com/share/188a0a69-56a0-44dc-b82a-a759714811c7
+
+Video Game Project Report
+User
+Write a project report for me. 
+Project Requirement 
+This project explores combining interactive and graphics to create a video game. You will create a game with rules of play, a control scheme using the keyboard or mouse (or both!), a visual display, and a scoring system.
+
+While I recommend doing this game in 2D, you may opt to do a 3D game as well. Note that 3D games will be much, much more difficult that 2D games.
+
+Implement the following:
+
+A game with at least three rules of play. For example, in a Breakout game, the rules might be:
+The ball bounces off the walls and the paddle.
+The ball breaks bricks.
+The player loses a life if the ball falls off the bottom of the screen.
+A control scheme using the keyboard or mouse (or both!) to interact with the game. This control scheme should use at least three different keys or mouse inputs.
+A visual display that shows the game state. For Breakout, this would show the bricks, the paddle, and the ball.
+A scoring system that tracks the player’s progress in the game. You can make this as simple as how long the player survived, or track some sort of metric like points, lives, etc.
+A GUI system consisting of at least one piece of display information and one interactable element. At its most basic, this can consist simply of an exit button and a score display.
+
+Project Report
+Make sure your report includes the following information:
+The game rules and controls
+What classes you have designed and what they do
+Any unexpected challenges you faced along the way
+Any extra credit you implemented
+
+Example: 
+<project5> Report for <zc5983>
+====================================
+
+## Instructions
+
+<Open zc5983_project5 in Processing and click Run. Click on any susceptible (grey) individual  to start the infection process. Use the scroll bars to adjust the infection rate and recovery rate. The 'Reset' button resets the grid to its initial state.>
+
+## Report
+
+<Narrative: 
+	Disease Spread Simulation. Based on user-defined rates of infection and recovery, a disease can spread from one individual to another, and infected individual can recover.
+
+Classes: 
+	Button: Base class for button functionality.
+	TextButton: Represents a button with text, subclass of Button class.
+	ScrollBar: Represents a scroll bar for adjusting infection and recovery rates, subclass of Button class.
+	Grid: Represents individuals with 3 states: susceptible (grey), infectious (red), removed/recovered (blue).
+
+Interaction:
+	Based on the infection rate, the disease may spread to neibouring individual. 
+	Based on the recovery rate, infected individual may recover and become immune from the disease.  
+
+Drawing Elements:
+	Individuals are imported using PImage.
+
+Unexpected Challenges:
+	Ensuring the simulation starts only after user interaction (clicking a grid cell).
+	Correctly implementing the infection and recovery process based on the rates adjusted by the scroll bars.
+	Stopping the day counter when there are no more infectious cells to simulate the end of the outbreak.
+	Implementing particle movement based on specified rules and forces, such as attraction and repulsion, to simulate realistic behavior.
+	Decoupling the frontend and backend to separate the simulation logic from the rendering.
+
+Extra Credit Implementation:
+	Simulation Speed Control: Used millis() function within the simulation loop to delay if the simulation step completes too quickly.
+	Separate Threads: Used the thread() function to run the simulation logic on a separate thread from the rendering loop.
+
+Assistance
+	Used ChatGPT to write this report.>
+
+Project: 
+Ball ball;
+Bar bar;
+int numBricks;
+Brick[] bricks;
+Button[] buttons;
+boolean isPaused = false;
+int brickWidth = 49; 
+int brickHeight = 15; 
+int numRows = 8;
+int horizontalSpacing = 5; 
+int verticalSpacing = 5; 
+int ballDiameter = 15;
+int barLength = 60;
+int score = 0;
+int lives = 5; 
+boolean allBricksGone = false;
+boolean gameStart = false;
+
+void setup() {
+  size(800, 800);
+  buttons = new Button[3];
+  buttons[0] = new TextButton(700, 500, 50, "Pause");
+  buttons[1] = new TextButton(700, 400, 50, "Start");
+  buttons[2] = new TextButton(700, 400, 50, "Restart");
+  
+  PVector startPos = new PVector(random(width - 400), height / 2);
+  PVector mousePos = new PVector(mouseX, mouseY);
+  ball = new Ball(startPos, ballDiameter);
+  bar = new Bar(mousePos, barLength);
+  
+  int bricksPerRow = (width - 200 - horizontalSpacing) / (brickWidth + horizontalSpacing);
+  numBricks = bricksPerRow * numRows;
+  
+  bricks = new Brick[numBricks];
+  int startX = 30;  
+  int startY = 13; 
+
+  for (int j = 0; j < numRows; j++) {
+    for (int i = 0; i < bricksPerRow; i++) {
+      int x = startX + i * (brickWidth + horizontalSpacing);
+      int y = startY + j * (brickHeight + verticalSpacing);
+      PVector brickPos = new PVector(x, y);
+      bricks[j * bricksPerRow + i] = new Brick(brickPos, brickWidth, brickHeight);
+    }
+  }
+}
+
+void draw() {
+  background(100);
+  textSize(26);
+  fill(200);
+  rectMode(CORNER);
+  rect(width - 200, 0, 200, height);
+  
+  fill(0);
+  textAlign(CENTER);
+  text("Score", width - 100, 50);
+  text(score, width - 100, 80);
+  text("Lives", width - 100, 150);
+  text(lives, width - 100, 180);
+  //For testing
+  //text("Velocity", width - 100, 250); 
+  //text(int(ball.vel.y), width - 100, 280); 
+
+  pushStyle();
+  rectMode(CENTER);
+  if (lives > 0) {
+    if (!allBricksGone && !gameStart) {
+      buttons[0].draw();
+      buttons[1].draw();
+    } else if (gameStart){
+      buttons[0].draw();
+    }
+    if (allBricksGone) {
+      buttons[2].draw();
+      gameStart = false;
+      text("Congratulations!", (width - 200) / 2, height / 2);
+    }
+  } else {
+    buttons[2].draw();
+    gameStart = false;
+    text("Game Over", (width - 200) / 2, height / 2);
+  }
+  popStyle();
+  println(allBricksGone);
+  
+  boolean anyBrickVisible = false;
+  if (gameStart) {
+    if (!isPaused) {
+      if (lives > 0) {
+        ball.update();
+        ball.draw();
+        ball.checkCollisionWithBar(bar);
+      }
+      for (Brick brick : bricks) {
+        if (brick.visible) {
+          anyBrickVisible = true;
+          if (ball.checkCollision(brick)) {
+            brick.visible = false; 
+            ball.vel.y *= -1;
+            score += 3;
+            if (abs(ball.vel.x) < 20 && abs(ball.vel.y) < 20) {
+              ball.vel.x *= 1.05;
+              ball.vel.y *= 1.05;
+            }
+            ball.vel.x = constrain(ball.vel.x, -20, 20);
+            ball.vel.y = constrain(ball.vel.y, -20, 20);
+          }
+        }
+        if (!anyBrickVisible) {
+          allBricksGone = true;
+        }
+        brick.draw();
+      }
+    } else {
+      text("Paused", (width - 200) / 2 , height / 2);
+    }
+  }
+
+  bar.update();
+  bar.draw();
+}
+
+void resetGame() {
+  score = 0;
+  lives = 5; 
+  allBricksGone = false;
+  gameStart = true;
+  
+  ball.pos = new PVector(random(width - 400), height / 2);
+  ball.vel = new PVector(4, -4);
+  for (Brick brick : bricks) {
+    brick.visible = true; 
+  }
+}
+
+void mousePressed() {
+  for (int a = 0; a < buttons.length; a++) { 
+    if (buttons[a].try_click(mouseX, mouseY)) {
+      if (a == 0) {
+        isPaused = !isPaused;
+      } else if (a == 1){
+        gameStart = true;
+      } else if (a == 2){
+        resetGame();
+      }
+    }
+  }
+}
+
+void mouseReleased() {
+  for (Button b : buttons) {
+    b.buttonClicked = false; 
+  }
+}
+
+abstract class GameObject {
+  PVector pos;
+  boolean visible = true;
+
+  GameObject(PVector pos) {
+    this.pos = pos;
+  }
+
+  abstract void draw();
+  abstract float getWidth();
+  abstract float getHeight();
+
+  boolean checkCollision(GameObject other) {
+    return visible && other.visible &&
+         pos.x + getWidth()/2 > other.pos.x - other.getWidth()/2 &&
+         pos.x - getWidth()/2 < other.pos.x + other.getWidth()/2 &&
+         pos.y + getHeight()/2 > other.pos.y - other.getHeight()/2 &&
+         pos.y - getHeight()/2 < other.pos.y + other.getHeight()/2;
+  }
+}
+
+class Ball extends GameObject {
+  PVector vel = new PVector(random(-6, 6), 6);
+  float diameter;
+
+  Ball(PVector pos, float diameter) {
+    super(pos);
+    this.diameter = diameter;
+  }
+
+  void update() {
+    pos.add(vel);
+    bounce();
+    checkLoseLife();
+  }
+
+  void bounce() {
+    if (pos.x > width - diameter / 2 - 200 || pos.x < diameter / 2) {
+      vel.x *= -1;
+    }
+    if (pos.y < diameter / 2) {
+      vel.y *= -1;
+    }
+  }
+  
+  void checkCollisionWithBar(Bar bar) {
+    if (checkCollision(bar)) {
+      vel.y *= -1; 
+      float overlap = (pos.y + diameter/2) - (bar.pos.y - bar.getHeight()/2);
+      pos.y -= overlap + 1;
+    }
+  }
+
+  void draw() {
+    if (visible) {
+      ellipseMode(CENTER);
+      ellipse(pos.x, pos.y, diameter, diameter);
+    }
+  }
+  
+  void checkLoseLife() {
+    if (pos.y > height + diameter) { 
+      lives--;
+      if (lives > 0) {
+        respawnBall();
+      } else {
+        gameEnd(); 
+      }
+    }
+  }
+
+  void respawnBall() {
+    pos = new PVector(width/2, height + 30);
+    int delayTime = millis() + 1500;  
+    while (millis() < delayTime) {}
+    pos = new PVector(width/2, height/2); 
+    vel = new PVector(random(-6, 6), 6);
+  }
+  
+  void gameEnd() {
+    pos = new PVector(width/2, -50); 
+    vel = new PVector(0, 0);
+  }
+  
+  float getWidth() {
+    return diameter;
+  }
+  
+  float getHeight() {
+    return diameter;
+  }
+}
+
+class Bar extends GameObject {
+  int barLength;
+
+  Bar(PVector pos, int barLength) {
+    super(pos);
+    this.barLength = barLength;
+  }
+
+  void update() {
+    pos.x = constrain(mouseX, barLength / 2, width - barLength / 2 - 200);
+    pos.y = 700;
+  }
+
+  void draw() {
+    rectMode(CENTER);
+    rect(pos.x, pos.y, barLength, 15);
+  }
+
+  float getWidth() { return barLength; }
+  float getHeight() { return 20; }
+}
+
+class Brick extends GameObject {
+  float brickWidth;
+  float brickHeight;
+    
+  Brick(PVector pos, float width, float height) {
+    super(pos);
+    this.brickWidth = width;
+    this.brickHeight = height;
+  }
+
+  void draw() {
+    if (visible) {
+      rectMode(CENTER);
+      rect(pos.x, pos.y, brickWidth, brickHeight);
+    }
+  }
+  
+  float getWidth() { 
+    return brickWidth; 
+  }
+  
+  float getHeight() { 
+    return brickHeight; 
+  }
+}
+
+class Button{
+  int posX, posY, buttonH;
+  boolean buttonClicked;
+  
+  Button(int posX, int posY, int buttonH){
+    this.posX = posX;
+    this.posY = posY;
+    this.buttonH = buttonH;
+    this.buttonClicked = false;
+    checkButton();
+  }
+  
+  void checkButton(){
+    if(((posX + buttonH / 2) > width || (posY + buttonH / 2) > height) || (posX + buttonH / 2) < 0 || (posY + buttonH / 2) < 0){
+      println("Range exceeds the screen size!");
+    }
+  }
+  
+  void changeColor(){
+    if(buttonClicked){
+      fill(#FF0000);
+    } else{
+      fill(#00FF00);
+    }
+  }
+  
+  boolean try_click(int X, int Y){
+    if(X <= (posX + buttonH / 2) && X >= (posX - buttonH / 2) && Y <= (posY + buttonH / 2) && Y >= (posY - buttonH / 2)){
+      buttonClicked = !buttonClicked;
+      return buttonClicked;
+    } 
+    return false;
+  }
+  
+  void draw(){
+    changeColor();
+    rect(posX, posY, buttonH * 2, buttonH);
+  }
+}
+
+class TextButton extends Button{
+  int buttonType;
+  String text;
+  
+  TextButton(int posX, int posY, int buttonH, String text){
+    super(posX, posY, buttonH);
+    this.text = text;
+  }
+  
+  void draw(){
+    super.draw();
+    fill(0);
+    textAlign(CENTER, CENTER);
+    text(text, posX, posY);
+  }
+}
+ChatGPT
+# Project Report for Video Game Implementation
+
+## Overview
+
+This report outlines the development and implementation of a simple 2D video game designed for a course project. The game incorporates basic elements such as collision detection, scoring, and graphical user interface (GUI). The game follows the classic gameplay style similar to "Breakout" where the player controls a paddle to hit a ball that breaks bricks positioned at the top of the screen.
+
+## Game Rules and Controls
+
+The game is governed by the following rules:
+1. The ball bounces off the walls and the player's paddle.
+2. The ball breaks bricks upon contact.
+3. The player loses a life if the ball falls off the bottom of the screen.
+
+Controls:
+- Mouse movement controls the paddle's horizontal position.
+- The game can be paused and restarted using clickable buttons that are part of the game's GUI.
+
+## Class Design
+
+### GameObject
+- Abstract base class for all game objects, managing common properties like position and visibility.
+
+### Ball
+- Handles ball dynamics including movement, collision detection with the paddle and bricks, and responding to collisions by bouncing.
+
+### Bar (Paddle)
+- Tracks and updates the paddle's position based on the mouse's x-coordinate, constraining it within the game boundaries.
+
+### Brick
+- Represents individual bricks, handling their visibility and redrawing them only if they have not been hit.
+
+### Button and TextButton
+- Manages GUI elements such as buttons for pausing, starting, and restarting the game. `TextButton` is a subclass that additionally displays text on the buttons.
+
+## Unexpected Challenges
+
+- **Collision Detection:** Ensuring accurate collision detection between the ball and the bricks was challenging, especially when the ball hit the edge of a brick.
+- **Game State Management:** Properly managing game states (such as paused, running, and game over states) to respond to player interactions through GUI elements.
+- **Performance Optimization:** Keeping the game running smoothly as the number of elements (like bricks and GUI components) increased.
+
+## Extra Features
+
+- **Dynamic Speed Adjustment:** Implemented functionality to adjust the ball's speed dynamically based on game progress to increase difficulty.
+- **Multiple Lives:** Players can have multiple lives, adding depth to the gameplay and enhancing user engagement.
+
+## Conclusion
+
+This project was a valuable exercise in applying theoretical concepts of programming and game design in a practical context. Despite challenges such as collision detection and game state management, the project was successfully completed, providing a functional and entertaining game experience. Future improvements could include more complex levels, enhanced graphics, and additional features like power-ups or special bricks.

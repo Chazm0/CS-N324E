@@ -1,0 +1,20 @@
+You and your group member’s names, if applicable.
+I will do the project myself. 
+
+A high-level overview of what your final project will be.
+I will make two levels of Angry Birds. The player should be able to drag the catapult to launch the bird towards the pigs and the structure that protects them. The player wins if all pigs are eliminated, and loses if no birds are left. 
+
+How you are going to meet the requirements placed on your final project
+Keyboard interactivity: 
+When the user presses the space bar, the yellow bird accelerates. 
+
+Multiple GUI systems:
+There will be 3 screens: a “main menu” screen with buttons to select the two levels, and the screens of the two levels. The level screen will have a “pause” button, a “restart” button, and a “main menu” button. 
+
+Class objects with animation hierarchies: 
+Class Button that allows clicking and displaying text on it.
+Class Bird that draws a bird with collision checks. It has one subclass, YellowBird, which accelerates when the player clicks the space bar. 
+Abstract Class Brick that allows collision checks. It has 3 subclasses: StoneBrick, WoodBrick, and GlassBrick, each with different strengths, which checks how many impacts it can take before breaking. 
+
+Data input/output: 
+The highest score for each level will be stored and displayed on the main level screen. 

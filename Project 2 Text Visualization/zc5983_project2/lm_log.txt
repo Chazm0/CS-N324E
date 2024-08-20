@@ -1,0 +1,84 @@
+Find Unique Words Python
+User
+how to count the number of occurrences of each word, and then write out the words that only appear once using python's defaultdict
+ChatGPT
+To count the number of occurrences of each word in a text and then identify words that only appear once using Python's `defaultdict` from the `collections` module, you can follow this approach:
+
+1. **Import defaultdict** from `collections`.
+2. Create a `defaultdict` to store word counts with integers as default values.
+3. Split the text into words and iterate over them, updating the count in the dictionary.
+4. Iterate through the dictionary to find words that appear exactly once.
+
+Here is a Python code example that implements these steps:
+
+```python
+from collections import defaultdict
+
+# Sample text
+text = "hello world hello everyone in the world of python programming"
+
+# Function to count occurrences and find unique words
+def find_unique_words(text):
+    word_count = defaultdict(int)
+    
+    # Split text into words and count occurrences
+    words = text.split()
+    for word in words:
+        word_count[word] += 1
+    
+    # Find words that appear exactly once
+    unique_words = [word for word, count in word_count.items() if count == 1]
+    
+    return unique_words
+
+# Call the function and print unique words
+unique_words = find_unique_words(text)
+print("Words that appear only once:", unique_words)
+```
+
+This script will output:
+```
+Words that appear only once: ['everyone', 'in', 'of', 'programming']
+```
+
+This demonstrates how to count word occurrences and filter out words that appear only once using `defaultdict`. Adjust the `text` variable to use this code with any text you need to analyze.
+User
+the following error occured for the python script:
+Traceback (most recent call last):
+  File "d:\Files\Course\CS N324E\Projects\Project 2 Text Visualization\Information_Etractors.py", line 49, in <module>
+    main()
+  File "d:\Files\Course\CS N324E\Projects\Project 2 Text Visualization\Information_Etractors.py", line 40, in main
+    book_text = f.read()
+                ^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 23, in decode
+    return codecs.charmap_decode(input,self.errors,decoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeDecodeError: 'charmap' codec can't decode byte 0x81 in position 18271: character maps to <undefined>
+ChatGPT
+The error you're encountering is a `UnicodeDecodeError`, which typically occurs when Python tries to read a file using an incorrect character encoding. The default encoding for Python on Windows is `cp1252`, but it seems that your file contains characters that are not representable in this encoding.
+
+To fix this error, you should specify the encoding of the file when you open it. Most modern text files, especially those that might contain a variety of characters (like books or texts in various languages), are encoded in UTF-8. Here’s how you can modify your code to specify UTF-8 encoding when reading the file:
+
+```python
+with open('path_to_your_file.txt', 'r', encoding='utf-8') as f:
+    book_text = f.read()
+```
+
+Here’s a broader context of how you might use this in a main function:
+
+```python
+def main():
+    # Assuming 'path_to_your_file.txt' is the path to your text file
+    with open('path_to_your_file.txt', 'r', encoding='utf-8') as f:
+        book_text = f.read()
+    
+    # Your processing code here
+    # For example, finding unique words
+    unique_words = find_unique_words(book_text)
+    print("Words that appear only once:", unique_words)
+
+if __name__ == "__main__":
+    main()
+```
+
+By specifying `encoding='utf-8'` when opening the file, Python will attempt to decode the file using UTF-8 encoding, which should resolve the `UnicodeDecodeError` if your file is indeed encoded in UTF-8. If you continue to experience issues, the file might be in a different encoding, and you might need to check the source of your file or experiment with other encodings like `iso-8859-1`, `ascii`, etc., depending on the file’s origin.

@@ -1,0 +1,202 @@
+Calculate and Visualize Pixel Distances
+User
+This project has two parts. 
+I have finished part 1. I used a circle, an arc, and an ellipse to form 3 Concentric circles. Since there are 3 Concentric circles, you don't need to calculate the shortest path. don't write the entire program otherwise my professor will rant, instead, walk me through how should I implement the 2nd part, and what functions should I use
+
+Part 1:
+Your project should create a static image when run. The image should be of something: don’t just make random strokes on the canvas. The image needs to be at least 500x500 pixels in size, and should contain at least:
+
+3 types of geometric primitives
+3 types of stroke weights
+4 different colors
+This Processing project should run when clicking the “Play” button in the Processing IDE.
+
+Part 2:
+In many image applications, we want to measure distances between pixels. To do this, we often assume a pixel is connected to its four nearest neighbors (up, down, left, right) and to no other pixels in the image.
+
+The distance between any two connected pixels is determined (only) by the color difference between the pixels. If the colors are the same, the distance is 0.0. If one pixel is black and the other is white, the distance is 1.0.
+
+Create an alternate display mode for the image you drew which, instead of showing the image, visualizes the length of the shortest path from the center of the image to every pixel of the image, using the pairwise distance rules described above. Draw these such that distance zero is drawn black and the largest distance in the image is drawn in white. To do this, you’ll need to recover the image that’s drawn. You may find the PGraphics class helpful for this.
+
+ChatGPT
+To complete the second part of the project, you'll need to measure distances between pixels and visualize the shortest path from the center of the image to every pixel. Here's a step-by-step guide on how to approach this in Processing:
+
+### Step-by-Step Guide
+
+1. **Capture the Original Image:**
+   - Use the `PGraphics` class to capture the static image you created in Part 1.
+
+2. **Initialize Distance Array:**
+   - Create a 2D array to store the distances from the center pixel to every other pixel.
+
+3. **Calculate Distances:**
+   - Implement a breadth-first search (BFS) to calculate the shortest path distances from the center pixel to every other pixel using the color difference as the distance metric.
+
+4. **Normalize Distances:**
+   - Normalize the calculated distances to a range of 0.0 to 1.0 for visualization purposes.
+
+5. **Display the Distance Image:**
+   - Create an alternate display mode that visualizes the distance values, with 0.0 distance (same color) as black and the maximum distance as white.
+
+### Detailed Implementation Steps
+
+#### 1. Capture the Original Image
+
+```java
+PGraphics pg;
+
+void setup() {
+  size(500, 500);
+  pg = createGraphics(500, 500);
+  drawImage(pg);
+  pg.endDraw();
+}
+
+void drawImage(PGraphics pg) {
+  pg.beginDraw();
+  // Drawing your Part 1 image here
+  pg.background(255); // Example background
+  pg.strokeWeight(2);
+  pg.stroke(0);
+  pg.fill(255, 0, 0);
+  pg.ellipse(width/2, height/2, 100, 100); // Example ellipse
+  pg.endDraw();
+  image(pg, 0, 0);
+}
+```
+
+#### 2. Initialize Distance Array
+
+```java
+float[][] distances;
+boolean[][] visited;
+int centerX, centerY;
+
+void setup() {
+  size(500, 500);
+  pg = createGraphics(500, 500);
+  drawImage(pg);
+  pg.endDraw();
+  
+  distances = new float[width][height];
+  visited = new boolean[width][height];
+  centerX = width / 2;
+  centerY = height / 2;
+  
+  calculateDistances();
+  displayDistances();
+}
+
+```
+
+#### 3. Calculate Distances
+
+```java
+void calculateDistances() {
+  PImage img = pg.get();
+  
+  for (int x = 0; x < width; x++) {
+    for (int y = 0; y < height; y++) {
+      distances[x][y] = Float.MAX_VALUE;
+    }
+  }
+  
+  distances[centerX][centerY] = 0;
+  LinkedList<int[]> queue = new LinkedList<int[]>();
+  queue.add(new int[] {centerX, centerY});
+  
+  int[] dx = {1, -1, 0, 0};
+  int[] dy = {0, 0, 1, -1};
+  
+  while (!queue.isEmpty()) {
+    int[] point = queue.removeFirst();
+    int x = point[0];
+    int y = point[1];
+    
+    for (int i = 0; i < 4; i++) {
+      int nx = x + dx[i];
+      int ny = y + dy[i];
+      
+      if (nx >= 0 && ny >= 0 && nx < width && ny < height) {
+        float colorDiff = colorDistance(img.get(x, y), img.get(nx, ny));
+        float newDist = distances[x][y] + colorDiff;
+        
+        if (newDist < distances[nx][ny]) {
+          distances[nx][ny] = newDist;
+          queue.add(new int[] {nx, ny});
+        }
+      }
+    }
+  }
+}
+```
+
+#### 4. Normalize Distances
+
+```java
+void normalizeDistances() {
+  float maxDist = 0;
+  
+  for (int x = 0; x < width; x++) {
+    for (int y = 0; y < height; y++) {
+      if (distances[x][y] != Float.MAX_VALUE && distances[x][y] > maxDist) {
+        maxDist = distances[x][y];
+      }
+    }
+  }
+  
+  for (int x = 0; x < width; x++) {
+    for (int y = 0; y < height; y++) {
+      if (distances[x][y] != Float.MAX_VALUE) {
+        distances[x][y] /= maxDist;
+      }
+    }
+  }
+}
+```
+
+#### 5. Display the Distance Image
+
+```java
+void displayDistances() {
+  loadPixels();
+  
+  for (int x = 0; x < width; x++) {
+    for (int y = 0; y < height; y++) {
+      float dist = distances[x][y];
+      int colorValue = (int) (dist * 255);
+      pixels[x + y * width] = color(255 - colorValue);
+    }
+  }
+  
+  updatePixels();
+}
+
+void draw() {
+  if (keyPressed && key == 'd') {
+    normalizeDistances();
+    displayDistances();
+  } else {
+    image(pg, 0, 0);
+  }
+}
+```
+
+### Function for Color Distance
+
+```java
+float colorDistance(color c1, color c2) {
+  float r1 = red(c1), g1 = green(c1), b1 = blue(c1);
+  float r2 = red(c2), g2 = green(c2), b2 = blue(c2);
+  return dist(r1, g1, b1, r2, g2, b2) / sqrt(3 * 255 * 255);
+}
+```
+
+### Summary
+
+1. Use `PGraphics` to capture your static image.
+2. Initialize a 2D array to store distances and perform BFS to calculate shortest paths.
+3. Normalize these distances to the range [0, 1].
+4. Create an alternate display mode to visualize the distances.
+
+You can run this sketch and press the 'd' key to switch to the distance visualization mode.

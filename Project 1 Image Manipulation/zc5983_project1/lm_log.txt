@@ -1,0 +1,84 @@
+Combine Sobel Edge Detection
+
+User
+In processing, how do i combine vertical and horizontal edge detection into one output
+ChatGPT
+In Processing, combining vertical and horizontal edge detection into a single output typically involves the use of edge detection kernels, which are applied to the image to highlight the edges in these two orientations. The most common method for this is by using the Sobel operator, which includes separate horizontal and vertical filters. Here's a basic guide on how to implement this:
+
+### Step 1: Define the Sobel Kernels
+The Sobel operator uses two 3x3 matrices: one for detecting horizontal edges and one for vertical edges.
+
+```java
+float[][] sobelHorizontal = {
+  {-1, 0, 1},
+  {-2, 0, 2},
+  {-1, 0, 1}
+};
+
+float[][] sobelVertical = {
+  {-1, -2, -1},
+  { 0,  0,  0},
+  { 1,  2,  1}
+};
+```
+
+### Step 2: Load and Prepare the Image
+Load the image and create a copy to store the output.
+
+```java
+PImage img;
+PImage edgeImg;
+
+void setup() {
+  size(640, 480);
+  img = loadImage("yourImage.jpg");
+  img.resize(width, height);
+  edgeImg = createImage(img.width, img.height, RGB);
+}
+```
+
+### Step 3: Apply the Sobel Filter
+Apply both the horizontal and vertical Sobel filters to each pixel, then combine the results.
+
+```java
+void draw() {
+  image(img, 0, 0);
+  filterImage();
+  image(edgeImg, 0, 0);
+}
+
+void filterImage() {
+  edgeImg.loadPixels();
+  img.loadPixels();
+
+  for (int x = 1; x < img.width - 1; x++) {
+    for (int y = 1; y < img.height - 1; y++) {
+      float sumH = 0;
+      float sumV = 0;
+
+      for (int i = -1; i <= 1; i++) {
+        for (int j = -1; j <= 1; j++) {
+          int px = x + i;
+          int py = y + j;
+          int idx = py * img.width + px;
+
+          sumH += brightness(img.pixels[idx]) * sobelHorizontal[j + 1][i + 1];
+          sumV += brightness(img.pixels[idx]) * sobelVertical[j + 1][i + 1];
+        }
+      }
+
+      // Compute the magnitude of gradients
+      float edgeStrength = sqrt(sq(sumH) + sq(sumV));
+      edgeImg.pixels[y * img.width + x] = color(edgeStrength);
+    }
+  }
+  edgeImg.updatePixels();
+}
+```
+
+### Step 4: Display the Result
+The `draw()` function already contains calls to display both the original image and the edge-detected image.
+
+In this setup, `sumH` accumulates the horizontal edge strengths, and `sumV` accumulates the vertical edge strengths for each pixel. The total edge strength at each pixel (`edgeStrength`) is calculated using the Pythagorean theorem, treating the results from the horizontal and vertical filters as perpendicular vectors.
+
+This method will highlight edges in both directions and can be used to detect edges in various orientations. Adjustments might be needed based on the specific requirements or enhancements in edge detection sensitivity.
